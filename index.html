@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lift Log">
+<meta name="theme-color" content="#0a0a0a">
+<title>Lift Log — Adam</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0a0a;--bg2:#141414;--bg3:#1e1e1e;--bg4:#282828;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+  --text:#f0f0f0;--text2:#888;--text3:#444;
+  --accent:#c8f542;
+  --r:12px;--rsm:8px;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;overflow:hidden}
+#app{height:100vh;display:flex;flex-direction:column}
+.nav{display:flex;background:var(--bg);border-bottom:0.5px solid var(--border);padding:calc(var(--st) + 10px) 0 10px;flex-shrink:0}
+.nb{flex:1;padding:6px 4px;background:none;border:none;color:var(--text2);font-size:10px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;letter-spacing:0.3px;text-transform:uppercase}
+.nb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nb.active{color:var(--accent)}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;display:none;padding-bottom:calc(var(--sb) + 16px)}
+.screen.active{display:block}
+.ph{padding:20px 16px 8px}
+.pt{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+.ps{font-size:13px;color:var(--text2);margin-top:4px}
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin:0 16px 10px}
+.btn{display:block;width:calc(100% - 32px);margin:0 16px;padding:14px;background:var(--accent);color:#0a0a0a;font-size:15px;font-weight:700;border:none;border-radius:var(--r);cursor:pointer;text-align:center;transition:opacity 0.15s}
+.btn:active{opacity:0.8}
+.btn.sec{background:var(--bg3);color:var(--text);border:0.5px solid var(--border2);font-weight:500}
+.session-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);margin:0 16px 14px;overflow:hidden}
+.sc-head{padding:14px 16px;background:var(--bg3);border-bottom:0.5px solid var(--border)}
+.sc-title{font-size:17px;font-weight:600}
+.sc-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.ep-row{display:flex;align-items:center;padding:9px 16px;gap:12px}
+.ep-row+.ep-row{border-top:0.5px solid var(--border)}
+.ep-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.ep-name{font-size:14px;flex:1}
+.ep-target{font-size:12px;color:var(--text2)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.stat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:14px}
+.stat-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.stat-val{font-size:22px;font-weight:700;letter-spacing:-0.5px}
+.stat-unit{font-size:13px;color:var(--text2);font-weight:400}
+.chart-wrap{margin:0 16px 16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:16px}
+.chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.chip{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer}
+.chip.active{background:var(--accent);color:#0a0a0a;border-color:var(--accent)}
+.hist-item{margin:0 16px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden}
+.hist-head{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.hist-date{font-size:14px;font-weight:600}
+.hist-name{font-size:12px;color:var(--text2);margin-top:2px}
+.hist-chev{color:var(--text3);font-size:18px;transition:transform 0.2s}
+.hist-chev.open{transform:rotate(180deg)}
+.hist-body{display:none;border-top:0.5px solid var(--border)}
+.hist-body.open{display:block}
+.hist-ex{padding:9px 14px;font-size:13px;display:flex;justify-content:space-between}
+.hist-ex+.hist-ex{border-top:0.5px solid var(--border)}
+.hist-ex-n{color:var(--text2)}
+.hist-notes{padding:10px 14px;font-size:12px;color:var(--text2);font-style:italic;border-top:0.5px solid var(--border)}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:200;display:none;flex-direction:column;overflow:hidden}
+.overlay.active{display:flex}
+.ov-top{display:flex;align-items:center;padding:calc(var(--st) + 14px) 16px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0;gap:12px}
+.ov-back{background:var(--bg3);border:none;color:var(--text2);font-size:13px;padding:6px 12px;border-radius:20px;cursor:pointer;flex-shrink:0}
+.ov-title{font-size:17px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
+.ov-footer{padding:12px 16px calc(var(--sb) + 12px);border-top:0.5px solid var(--border);flex-shrink:0}
+.sess-prog{height:3px;background:var(--bg3);margin:0 16px;border-radius:2px}
+.sess-prog-bar{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s}
+.sess-prog-lbl{font-size:11px;color:var(--text2);padding:6px 16px 12px}
+.eli{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:10px;display:flex;align-items:center;padding:14px 16px;cursor:pointer;gap:14px}
+.eli:active{background:var(--bg3)}
+.eli.done{border-color:rgba(200,245,66,0.3)}
+.eli-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--accent)}
+.eli-check.done{background:rgba(200,245,66,0.12);border-color:rgba(200,245,66,0.5)}
+.eli-info{flex:1;min-width:0}
+.eli-name{font-size:15px;font-weight:500}
+.eli-target{font-size:12px;color:var(--text2);margin-top:2px}
+.eli-sets{font-size:11px;color:var(--accent);margin-top:3px}
+.eli-arrow{color:var(--text3);font-size:18px;flex-shrink:0}
+.ex-card-head{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:12px 14px;border-bottom:none;display:flex;justify-content:space-between;align-items:flex-start}
+.ex-card-name{font-size:15px;font-weight:600}
+.ex-card-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.info-btn{background:rgba(200,245,66,0.12);border:0.5px solid rgba(200,245,66,0.3);color:var(--accent);font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:10px}
+.sets-wrap{background:var(--bg2);border:0.5px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);margin-bottom:14px}
+.set-heads{display:grid;grid-template-columns:26px 1fr 1fr 1fr;gap:6px;padding:7px 12px 4px}
+.sh{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;text-align:center}
+.set-row{display:grid;grid-template-columns:26px 1fr 1fr 1fr;gap:6px;padding:8px 12px;align-items:center;border-top:0.5px solid var(--border)}
+.set-num{font-size:11px;color:var(--text3);font-weight:600;text-align:center}
+.si{background:var(--bg4);border:0.5px solid var(--border);border-radius:var(--rsm);padding:8px 4px;font-size:15px;color:var(--text);text-align:center;width:100%;-webkit-appearance:none}
+.si:focus{outline:none;border-color:rgba(200,245,66,0.5)}
+.si::placeholder{color:var(--text3);font-size:13px}
+.add-set-btn{background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;padding:10px 14px;cursor:pointer;display:block}
+.notes-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.notes-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.notes-ta{background:transparent;border:none;color:var(--text);font-size:14px;width:100%;resize:none;min-height:80px;line-height:1.5;font-family:inherit}
+.notes-ta:focus{outline:none}
+.notes-ta::placeholder{color:var(--text3)}
+.empty{text-align:center;padding:60px 24px;color:var(--text2)}
+.empty-t{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty-s{font-size:13px;line-height:1.5}
+/* INFO SHEET */
+.sheet-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:500;display:none;align-items:flex-end}
+.sheet-bg.active{display:flex}
+.sheet{background:var(--bg2);border-radius:20px 20px 0 0;padding:20px 20px calc(var(--sb) + 24px);max-height:80vh;overflow-y:auto;width:100%}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.sheet-title{font-size:17px;font-weight:600;margin-bottom:6px}
+.sheet-summary{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.sheet-section{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;margin-top:14px}
+.sheet-cue{font-size:14px;color:var(--text);padding:7px 0;border-bottom:0.5px solid var(--border);line-height:1.4}
+.sheet-cue:before{content:"→ ";color:var(--accent)}
+.sheet-feel{font-size:13px;color:var(--text2);line-height:1.5;margin-top:6px}
+.sheet-avoid{font-size:13px;color:#ff6b6b;line-height:1.5;margin-top:6px}
+.sheet-yt{display:block;margin-top:16px;padding:12px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);color:var(--accent);font-size:13px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav class="nav">
+    <button class="nb active" onclick="showScreen('today')" id="nav-today">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Today
+    </button>
+    <button class="nb" onclick="showScreen('progress')" id="nav-progress">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Progress
+    </button>
+    <button class="nb" onclick="showScreen('history')" id="nav-history">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History
+    </button>
+  </nav>
+  <div class="screen active" id="screen-today">
+    <div class="ph"><div class="pt">Today</div><div class="ps" id="today-date"></div></div>
+    <div id="today-content"></div>
+  </div>
+  <div class="screen" id="screen-progress">
+    <div class="ph"><div class="pt">Progress</div><div class="ps">Last 4 weeks</div></div>
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="chart-wrap">
+      <div class="chips" id="chart-chips"></div>
+      <div style="position:relative;height:200px"><canvas id="progressChart" role="img" aria-label="Lift progress over last 4 weeks"></canvas></div>
+    </div>
+  </div>
+  <div class="screen" id="screen-history">
+    <div class="ph"><div class="pt">History</div><div class="ps">Last 4 weeks</div></div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<!-- SESSION OVERLAY -->
+<div class="overlay" id="ov-session">
+  <div class="ov-top">
+    <button class="ov-back" onclick="closeSession()">✕ Cancel</button>
+    <div class="ov-title" id="ov-session-title"></div>
+  </div>
+  <div style="padding:12px 16px 0">
+    <div class="sess-prog"><div class="sess-prog-bar" id="sess-prog-bar" style="width:0%"></div></div>
+    <div class="sess-prog-lbl" id="sess-prog-lbl"></div>
+  </div>
+  <div class="ov-body" id="ov-session-body"></div>
+  <div class="ov-footer" id="ov-session-footer"></div>
+</div>
+
+<!-- EXERCISE OVERLAY -->
+<div class="overlay" id="ov-exercise">
+  <div class="ov-top">
+    <button class="ov-back" onclick="backToList()">← Back</button>
+    <div class="ov-title" id="ov-ex-title"></div>
+    <button class="info-btn" id="info-btn" onclick="openInfo()">How to</button>
+  </div>
+  <div class="ov-body" id="ov-ex-body"></div>
+  <div class="ov-footer">
+    <button class="btn" onclick="saveExercise()">Done — back to list</button>
+  </div>
+</div>
+
+<!-- INFO SHEET -->
+<div class="sheet-bg" id="sheet-bg" onclick="closeInfo(event)">
+  <div class="sheet" id="info-sheet">
+    <div class="sheet-handle"></div>
+    <div id="sheet-content"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const SESSIONS={
+  monday:{name:'Monday — Upper body',type:'Work Gym',block:'Block 1',exercises:[
+    {name:'Barbell Bench Press',target:'3 × 10',tip:'Start ~40kg · RPE 6–7'},
+    {name:'Incline Dumbbell Press',target:'3 × 12',tip:'12–14kg DBs · RPE 6–7'},
+    {name:'Cable Row (seated)',target:'3 × 12',tip:'Feel it out · RPE 7'},
+    {name:'Lat Pulldown',target:'3 × 12',tip:'Feel it out · RPE 7'},
+    {name:'Barbell OHP',target:'3 × 10',tip:'Start ~30kg · RPE 6–7'},
+    {name:'Cable Fly',target:'3 × 15',tip:'Light · RPE 6'},
+    {name:'Cable Crunch',target:'3 × 15',tip:'Light–moderate · RPE 7'},
+    {name:'Plank',target:'3 × 30s',tip:'Bodyweight'},
+  ]},
+  wednesday:{name:'Wednesday — Lower body',type:'Work Gym',block:'Block 1',exercises:[
+    {name:'Conventional Deadlift',target:'3 × 8',tip:'Start ~60kg · RPE 6–7'},
+    {name:'Hack Squat (machine)',target:'3 × 10',tip:'Feel it out · RPE 6–7'},
+    {name:'Leg Press',target:'3 × 12',tip:'Feel it out · RPE 6–7'},
+    {name:'Romanian Deadlift',target:'3 × 10',tip:'Start ~40kg · RPE 6–7'},
+    {name:'Leg Curl (lying)',target:'3 × 12',tip:'Feel it out · RPE 7'},
+    {name:'Standing Calf Raise',target:'3 × 15',tip:'Feel it out · RPE 7'},
+    {name:'Banded Clamshell',target:'3 × 15 each',tip:'Band — knee work'},
+    {name:'Cable Crunch',target:'3 × 15',tip:'Light–moderate · RPE 7'},
+    {name:'Plank',target:'3 × 30s',tip:'Bodyweight'},
+  ]},
+  thursday:{name:'Thursday — Home circuit',type:'Home',block:'Block 1',exercises:[
+    {name:'Push Up',target:'4 × max',tip:'Bodyweight · RPE 7–8'},
+    {name:'Goblet Squat',target:'3 × 15',tip:'Light DB · RPE 6–7'},
+    {name:'Banded Clamshell',target:'3 × 15 each',tip:'Band — knee work'},
+    {name:'Banded Lateral Walk',target:'3 × 10 each',tip:'Band — knee work'},
+    {name:'Superman Hold',target:'3 × 30s',tip:'Bodyweight'},
+    {name:'Ab Wheel',target:'3 × 10',tip:'Bodyweight · RPE 7'},
+    {name:'Plank',target:'3 × 45s',tip:'Bodyweight'},
+    {name:'Band Row',target:'3 × 15',tip:'Band · RPE 7'},
+  ]},
+  saturday:{name:'Saturday — Pool & mobility',type:'Pool',block:'Block 1',exercises:[
+    {name:'Water Jogging',target:'10 min',tip:'Home pool'},
+    {name:'Aqua Squat',target:'3 × 20',tip:'Home pool'},
+    {name:'Flutter Kicks (pool)',target:'3 × 30s',tip:'Home pool'},
+    {name:'Pool Wall Push Up',target:'3 × 15',tip:'Home pool'},
+    {name:'Pool Plank (wall hold)',target:'3 × 30s',tip:'Home pool'},
+    {name:'Pool Stretching / Mobility',target:'10 min',tip:'Home pool'},
+  ]},
+};
+
+const BIG6=['Barbell Bench Press','Conventional Deadlift','Barbell OHP','Hack Squat (machine)','Leg Press','Romanian Deadlift'];
+
+const EX={
+  "Hack Squat (machine)":{summary:"Machine squat with your back supported — loads the quads hard with less knee stress than a free squat.",setup:"Shoulders under the pads, feet shoulder-width on the platform, toes slightly out.",cues:["Keep lower back pressed into the pad throughout","Lower until thighs are parallel — no deeper than comfortable","Drive through your full foot, not just toes","Knees track over your toes — don't let them cave in"],feel:"Quads burning on the way down and up. Glutes engage at the top.",avoid:"Hips coming off the pad. Locking knees out aggressively at the top.",yt:"hack squat machine form tutorial"},
+  "Leg Press":{summary:"Seated machine — loads legs heavily with minimal lower back stress. Great for quad and glute size.",setup:"Feet shoulder-width on the platform, back and head flat against the pad.",cues:["Lower until knees are at roughly 90 degrees — no deeper","Drive through your heels, not your toes","Don't lock knees out completely at the top","Lower back stays on the pad — don't let it round"],feel:"Quads and glutes throughout. Heels push the platform away.",avoid:"Going too deep — rounds the lower back. Knees caving inward.",yt:"leg press proper form tutorial"},
+  "Step Ups":{summary:"Single-leg movement using a bench or box. Builds quad strength without deep knee loading.",setup:"Face a bench or box. Hold dumbbells at your sides or go bodyweight.",cues:["Place your full foot on the box — not just toes","Drive through the heel of the elevated leg","Don't push off the back foot — front leg does the work","Control the step down slowly"],feel:"Front quad and glute doing most of the work.",avoid:"Using momentum or pushing off the floor foot. Knee caving inward.",yt:"dumbbell step up form"},
+  "Goblet Squat":{summary:"Hold a dumbbell at your chest and squat. Natural squat pattern — great for learning depth with an upright torso.",setup:"Hold a dumbbell vertically at your chest. Feet shoulder-width, toes slightly out.",cues:["Sit down between your knees, not behind them","Keep chest tall and elbows inside knees at the bottom","Drive through your heels to stand","Squeeze your glutes at the top"],feel:"Quads and glutes evenly. Torso stays upright.",avoid:"Leaning forward. Heels coming off the floor.",yt:"goblet squat form tutorial"},
+  "Leg Extension (machine)":{summary:"Isolation machine for the quads only. Good for knee strength building with no joint loading.",setup:"Pad on shins just above ankles. Knees aligned with the machine pivot point.",cues:["Extend until legs are straight — don't hyperextend","Hold the top — squeeze quads","Lower slowly, don't let it drop","Back stays against the pad"],feel:"Pure quad burn, especially at the top.",avoid:"Momentum. Lifting hips off the seat.",yt:"leg extension machine form"},
+  "Conventional Deadlift":{summary:"Pick a barbell off the floor using your hips, hamstrings, and back. The most complete strength movement.",setup:"Bar over mid-foot, feet hip-width. Hinge at the hips, grip just outside legs. Hips down, chest up, back flat.",cues:["Push the floor away — don't think about pulling up","Keep the bar dragging close to your body","Drive hips forward to lock out at the top","Hinge back on the way down, don't squat it"],feel:"Hamstrings loading on the way down. Glutes and back on the pull.",avoid:"Rounding your lower back. Jerking the bar. Bar drifting away from your body.",yt:"conventional deadlift form for beginners"},
+  "Sumo Deadlift":{summary:"Wide stance deadlift with hands inside the legs. More hip and inner thigh, less lower back.",setup:"Wide stance, toes out. Grip inside your legs. Chest tall.",cues:["Push knees out in line with toes throughout","Drive hips forward at lockout","Chest tall throughout the pull","Bar stays close to your body"],feel:"More inner thigh and hip than conventional.",avoid:"Knees caving inward. Hips shooting up before bar breaks the floor.",yt:"sumo deadlift form tutorial"},
+  "Romanian Deadlift":{summary:"Hip hinge from standing — lower the bar down your legs until you feel the hamstring stretch, then drive back up.",setup:"Bar at hip height, feet hip-width. Soft knee bend throughout — this isn't a squat.",cues:["Push hips back as you lower — not just bending over","Lower until strong hamstring stretch, usually mid-shin","Bar stays close to your legs","Drive hips forward to return to standing"],feel:"Deep hamstring stretch at the bottom. Glutes and hamstrings firing on the way up.",avoid:"Bending knees too much. Rounding your lower back at the bottom.",yt:"romanian deadlift form tutorial"},
+  "Stiff Leg Deadlift":{summary:"Like the RDL but with nearly straight legs and more range of motion. Maximum hamstring stretch.",setup:"Very slight knee bend, nearly locked. Hinge down further than RDL.",cues:["Feel the hamstring stretch — that's the point","Keep back flat even as you reach lower","Controlled descent, powerful hip drive up","Bar stays close to your shins"],feel:"More intense hamstring stretch than RDL.",avoid:"Rounding the back. Going heavier than flexibility allows.",yt:"stiff leg deadlift form"},
+  "Hip Thrust (barbell)":{summary:"Bar across hips, shoulders on a bench, drive hips to the ceiling. The best glute exercise available.",setup:"Shoulders on bench, bar padded across hips. Feet flat, hip-width.",cues:["Drive through heels to push hips up","Squeeze glutes hard at the top — hold a second","Chin slightly tucked — don't hyperextend neck","Hips level at the top"],feel:"Glutes fully contracted. Almost nothing in the lower back if done right.",avoid:"Arching lower back instead of squeezing glutes. Feet too far away.",yt:"barbell hip thrust form tutorial"},
+  "Hip Thrust (machine)":{summary:"Same movement as barbell hip thrust but on a dedicated machine. Easier to load.",setup:"Adjust machine to your height. Pad sits across hips.",cues:["Full hip extension at the top — squeeze hard","Control the descent","Feet flat, knees tracking over toes","Drive through heels"],feel:"Pure glute contraction at the top.",avoid:"Rushing reps. Lower back taking over.",yt:"hip thrust machine form"},
+  "Glute Bridge":{summary:"Floor-based glute exercise. Like a hip thrust but on the ground. Great bodyweight option.",setup:"Lie on back, knees bent, feet flat on floor hip-width.",cues:["Drive hips straight up, squeeze glutes hard","Hold top for 1–2 seconds","Lower slowly","Feet close enough that shins are vertical at the top"],feel:"Glutes and hamstrings. Lower back stays relaxed.",avoid:"Hyperextending lower back. Feet too far away.",yt:"glute bridge form"},
+  "Leg Curl (lying)":{summary:"Lying face down on a machine, curl heels toward your glutes. Isolates the hamstrings.",setup:"Lie face down, pad just above heels, hips flat on bench.",cues:["Curl heels toward glutes in a controlled arc","Squeeze at the top — hold a moment","Lower slowly — the eccentric matters","Keep hips pressed down"],feel:"Hamstrings throughout. More intense at the top.",avoid:"Hips lifting off the pad. Using momentum.",yt:"lying leg curl machine form"},
+  "Leg Curl (seated)":{summary:"Seated version of the leg curl. Different angle — often more comfortable.",setup:"Sit upright, upper leg pad across thighs, pad just above heels.",cues:["Drive heels down and back in a smooth arc","Get heels under the seat at the bottom","Control the return","Stay sitting tall"],feel:"Hamstring contraction throughout.",avoid:"Leaning back to help. Incomplete range.",yt:"seated leg curl machine form"},
+  "Nordic Curl":{summary:"Kneel on a pad, feet anchored, lower your body toward the floor using your hamstrings. Very advanced.",setup:"Kneel on a pad with feet anchored under something heavy.",cues:["Lower as slowly as possible — fight gravity with hamstrings","Use hands to catch yourself at the bottom","Pull back up using hamstrings","Build up very gradually"],feel:"Extreme hamstring challenge. The hardest bodyweight hamstring exercise.",avoid:"Currently flagged — too much knee stress. Use leg curls instead.",yt:"nordic curl form tutorial"},
+  "Cable Pull Through":{summary:"Face away from a low cable, rope between your legs, hip hinge forward and back. Constant glute and hamstring tension.",setup:"Face away from low cable, rope between legs. Hinge forward.",cues:["Push hips back — cable pulling through is the cue","Drive hips forward to stand — squeeze glutes hard","Back stays flat throughout","Arms just hold the rope — legs and hips do the work"],feel:"Hamstrings and glutes with constant cable tension.",avoid:"Using your arms to pull. Rounding your back.",yt:"cable pull through form tutorial"},
+  "Barbell Bench Press":{summary:"The foundational chest exercise. Barbell from your chest to lockout on a flat bench.",setup:"Eyes under the bar. Grip slightly wider than shoulder-width. Feet flat. Slight natural arch in lower back.",cues:["Pull the bar out of the rack — don't press it","Lower to your lower chest / sternum in a slight arc","Elbows at 45–75 degrees from body — not flared","Drive feet into floor as you press"],feel:"Chest, shoulders, and triceps. Chest should be the primary feeling.",avoid:"Bouncing bar off chest. Flaring elbows wide. Hips lifting off bench.",yt:"barbell bench press form tutorial"},
+  "Dumbbell Bench Press":{summary:"Same as barbell bench but dumbbells — greater range of motion, each side works independently.",setup:"Sit with dumbbells on knees, kick back to lying. Dumbbells at chest, palms forward.",cues:["Lower until elbows just below bench level","Press up and slightly together","Wrists stacked over elbows","Control the descent"],feel:"Deeper chest stretch at the bottom than barbell.",avoid:"Dumbbells drifting too wide. Losing tension by touching them at the top.",yt:"dumbbell bench press form"},
+  "Incline Barbell Press":{summary:"Bench press on a 30–45 degree incline. Shifts emphasis to the upper chest.",setup:"Bench at 30–45 degrees. Grip slightly narrower than flat. Bar comes to upper chest.",cues:["Elbows at roughly 60 degrees — not flared","Lower to upper chest, not your neck","Drive bar up and slightly back toward face","Shoulder blades pinched back and down"],feel:"Upper chest doing more work. Shoulders assist more than flat.",avoid:"Bench above 45 degrees — becomes a shoulder press.",yt:"incline barbell press form"},
+  "Incline Dumbbell Press":{summary:"Incline press with dumbbells. More range of motion than barbell, great upper chest builder.",setup:"Bench at 30–45 degrees. Kick dumbbells up as you lie back.",cues:["Lower with control until you feel the upper chest stretch","Press up and slightly inward","Don't let dumbbells drift too wide at the bottom","Shoulder blades pinched throughout"],feel:"Strong upper chest stretch at the bottom.",avoid:"Bench too steep. Rushing the descent.",yt:"incline dumbbell press form"},
+  "Decline Press":{summary:"Bench press with feet elevated, head lower. Targets the lower chest.",setup:"Feet hooked in decline bench. Bar comes to lower chest.",cues:["Lower to your lower chest / bottom of pecs","Press straight up","Feet hooked in securely","Same elbow angle as flat bench"],feel:"Lower chest engagement more pronounced than flat.",avoid:"Going heavy before comfortable with the declined position.",yt:"decline bench press form"},
+  "Machine Chest Press":{summary:"Chest press on a fixed-path machine. Takes stabilisation out — good finisher.",setup:"Adjust seat so handles are at chest height. Back fully against the pad.",cues:["Press forward to full extension without hard locking","Control the return","Chest up, shoulders back","Full range — no half reps"],feel:"Chest working without needing to stabilise.",avoid:"Seat too high or low — handles should be at mid-chest.",yt:"chest press machine form"},
+  "Cable Fly":{summary:"Cable machine at chest height, one handle each side. Isolates the chest through a wide arc.",setup:"Between two cable stacks at chest height. Step one foot forward. Slight forward lean.",cues:["Hug a big tree — wide arc, soft elbow bend","Hands together in front of chest and squeeze","Control the stretch on the way back","Soft elbows — this is chest, not arms"],feel:"Deep chest stretch at the open position. Strong contraction when hands meet.",avoid:"Bending elbows too much — turns it into a press. Momentum.",yt:"cable fly form tutorial"},
+  "Dumbbell Fly":{summary:"Lying on a flat bench, dumbbells arc out wide and back. Pure chest isolation with a deep stretch.",setup:"Lie flat, dumbbells above chest, slight elbow bend. Palms facing each other.",cues:["Arc dumbbells out and down — like opening a book","Feel the chest stretch at the bottom","Same arc back — squeeze at the top","Elbow angle stays fixed throughout"],feel:"Big chest stretch at the bottom. Squeeze at the top.",avoid:"Elbows dropping too low — shoulder stress. Going too heavy.",yt:"dumbbell fly form"},
+  "Pec Dec (machine)":{summary:"Machine fly — arms squeeze together in front of chest. Great chest finisher.",setup:"Adjust seat so elbows are at shoulder height on the pads.",cues:["Squeeze arms together, hold a moment at the front","Control the stretch back — don't let it yank open","Chest tall, don't hunch","It's a squeeze, not a push"],feel:"Strong chest contraction. Very isolated.",avoid:"Going past comfortable stretch at the back — shoulder stress.",yt:"pec dec machine form"},
+  "Barbell OHP":{summary:"Press a barbell from your upper chest to lockout overhead. The main shoulder strength movement.",setup:"Bar at upper chest in rack. Grip just outside shoulder-width. Elbows slightly in front of bar.",cues:["Brace core like you're taking a punch","Press straight up — tuck chin so bar clears face","Once bar passes your head, push head through and lock out","Lower under control to upper chest"],feel:"Shoulders and triceps. Core bracing to stay stable.",avoid:"Leaning back to get the bar up — lower back stress. Pressing in front of body instead of straight up.",yt:"barbell overhead press form tutorial"},
+  "Dumbbell OHP":{summary:"Overhead press with dumbbells. Each side works independently — good for shoulder balance.",setup:"Seated or standing. Dumbbells at shoulder height, palms forward.",cues:["Press both up until arms extended overhead","Slight inward arc at the top","Lower to shoulder height","Core braced if standing"],feel:"Shoulders driving. Triceps locking out.",avoid:"Dumbbells drifting too far forward or back at the top.",yt:"dumbbell overhead press form"},
+  "Arnold Press":{summary:"Dumbbell shoulder press with a rotation — palms face you at the bottom, face forward at the top. Hits all three shoulder heads.",setup:"Seated, dumbbells at shoulder height with palms facing your body.",cues:["As you press up, rotate palms outward to face forward at the top","Reverse rotation on the way down","Full rotation every rep","Control both directions"],feel:"Shoulders through a bigger range. Front delt especially.",avoid:"Too heavy — rotation needs control. Rushing through the rotation.",yt:"arnold press form tutorial"},
+  "Seated Machine Press":{summary:"Shoulder press on a fixed-path machine. Load the shoulders without worrying about stabilisation.",setup:"Adjust seat so handles are at shoulder height.",cues:["Press straight up to full extension","Control the return to shoulder height","Lower back against the pad","Don't shrug shoulders up as you press"],feel:"Shoulders and triceps. More stable than dumbbell.",avoid:"Partial reps.",yt:"seated shoulder press machine form"},
+  "Landmine Press":{summary:"One end of a barbell anchored, press the other end up at an angle. Shoulder-friendly pressing.",setup:"Kneel or stand. Hold bar end at shoulder height. Press up and forward.",cues:["Press in the arc the bar naturally travels","Core braced","Single arm: brace off-side to resist rotation","Lower under control"],feel:"Front and side delts. Easier on shoulder joint than strict overhead.",avoid:"Swinging the bar. Losing core tension.",yt:"landmine press form"},
+  "Lateral Raise (DB)":{summary:"Raise dumbbells out to the sides to shoulder height. Targets the side delt — makes shoulders look wide.",setup:"Stand with dumbbells at sides. Slight forward lean and soft elbow bend.",cues:["Lead with your elbows, not your hands","Raise to shoulder height — no higher","Pinky slightly higher than thumb at the top","Lower slowly — 3 seconds down"],feel:"Side delt burning especially on the slow descent.",avoid:"Momentum. Shrugging traps to get them higher.",yt:"lateral raise form tutorial"},
+  "Lateral Raise (cable)":{summary:"Lateral raise using a cable — constant tension throughout, harder at the bottom than dumbbells.",setup:"Cable at lowest position. Stand side-on, grab handle with far hand.",cues:["Raise arm to shoulder height","Lead with elbow","Feel tension even at the bottom","Slow and controlled both ways"],feel:"Continuous side delt tension.",avoid:"Swinging. Standing too close to the stack.",yt:"cable lateral raise form"},
+  "Rear Delt Fly (DB)":{summary:"Bent over, raise dumbbells out to the rear. Targets the rear delt — important for posture and shoulder health.",setup:"Hinge forward until torso is nearly parallel to floor. Dumbbells below chest, palms facing each other.",cues:["Raise dumbbells out to the sides in a wide arc","Lead with elbows — slight bend stays fixed","Squeeze shoulder blades at the top","Lower slowly"],feel:"Rear shoulder and upper back.",avoid:"Standing too upright. Weights too heavy.",yt:"rear delt fly dumbbell form"},
+  "Rear Delt Fly (machine)":{summary:"Pec dec in reverse — arms push back instead of forward. Targets rear delts and upper back.",setup:"Sit facing the machine pad (reverse to fly). Grab handles with straight arms in front.",cues:["Push arms back and out in a wide arc","Squeeze shoulder blades at the back","Control the return forward","Chest against the pad"],feel:"Rear delt and upper back.",avoid:"Too much weight — rear delt is a small muscle.",yt:"reverse pec dec rear delt form"},
+  "Face Pull (cable)":{summary:"Cable set high, rope to your face while rotating hands out. Excellent for shoulder health and rear delts.",setup:"Cable at head height or above. Rope attachment. Step back.",cues:["Pull rope to your face — hands beside ears","Rotate hands so knuckles face ceiling at end","Elbows high and wide throughout","Hold end position a second"],feel:"Rear delts, external rotators, upper traps.",avoid:"Elbows dropping. Pulling to neck instead of face.",yt:"face pull cable form tutorial"},
+  "Barbell Bent Over Row":{summary:"Barbell pulled to your lower chest while bent over. Best back thickness builder.",setup:"Hip-width, hinge to ~45 degrees, back flat. Overhand grip just outside shoulder-width.",cues:["Pull bar to lower chest / upper stomach","Drive elbows back and up","Squeeze shoulder blades at the top","Lower under control"],feel:"Lats, rhomboids, rear delts. A strong pull through the whole back.",avoid:"Standing too upright. Rounding lower back. Jerking the bar.",yt:"barbell bent over row form tutorial"},
+  "Dumbbell Row":{summary:"One arm braced on a bench, pulling a dumbbell to your hip. Excellent back thickness, fixes imbalances.",setup:"One hand and knee on bench. Dumbbell hanging. Back flat and parallel to ground.",cues:["Pull dumbbell up and back toward your hip — not your armpit","Drive elbow up toward ceiling","Shoulder blade pulls back at the top","Lower with control — full stretch at bottom"],feel:"Lat and mid-back. Feel the stretch at the bottom of each rep.",avoid:"Rotating torso to help. Pulling toward shoulder instead of hip.",yt:"dumbbell row form tutorial"},
+  "Cable Row (seated)":{summary:"Seated cable row — pulls toward your stomach. Constant tension, great for the back.",setup:"Feet on platform, knees slightly bent. Sit tall.",cues:["Arms extended and slight forward lean to start — feel the stretch","Drive elbows back and pull handle to stomach","Squeeze shoulder blades at the end","Return slowly to stretched position"],feel:"Lats and mid-back. Strong squeeze all the way in.",avoid:"Rounding back on the stretch. Rocking back and forth.",yt:"seated cable row form"},
+  "Machine Row":{summary:"Chest-supported or seated row on a machine. No lower back involvement.",setup:"Adjust seat and chest pad. Chest pressed against pad.",cues:["Pull handles to your sides — drive elbows back","Squeeze at end of movement","Return slowly","Chest on pad throughout"],feel:"Mid-back and lats without lower back fatigue.",avoid:"Partial reps. Shrugging instead of retracting blades.",yt:"machine row form"},
+  "Chest Supported Row":{summary:"Row with chest on an incline bench — removes lower back entirely.",setup:"Incline bench 30–45 degrees. Lie face down, dumbbells or barbell hanging below.",cues:["Pull up and back toward hips","Squeeze shoulder blades hard at top","Lower with full extension","Chest stays on pad"],feel:"Pure back work with zero lower back.",avoid:"Lifting chest off pad for extra range.",yt:"chest supported row form"},
+  "Pull Up (bodyweight)":{summary:"Hang from a bar and pull chin over it. One of the best upper body pulling movements. Work gym only.",setup:"Hang from pull-up bar, hands slightly wider than shoulder-width, overhand grip.",cues:["Depress shoulder blades before you pull — 'shoulders in back pockets'","Drive elbows down and back toward hips","Chin over the bar, then lower with control","Full dead hang at the bottom each rep"],feel:"Lats driving. Biceps assisting.",avoid:"Kipping or swinging. Half reps.",yt:"pull up form tutorial for beginners"},
+  "Chin Up":{summary:"Pull up with underhand grip. Easier — biceps contribute more. Work gym only.",setup:"Hang with palms facing you, hands shoulder-width or narrower.",cues:["Same lat depression to start","Pull elbows down to sides","Chin over the bar","Full hang at bottom"],feel:"More bicep than pull ups. Lats still doing main work.",avoid:"Swinging. Partial reps.",yt:"chin up form tutorial"},
+  "Lat Pulldown (bar)":{summary:"Cable bar pulled down to your upper chest. Mimics the pull-up and builds lat width.",setup:"Grip bar wider than shoulder-width, overhand. Thighs under pad. Slight lean back.",cues:["Pull bar to upper chest — not behind neck","Drive elbows down and back","Lean back slightly — 10–15 degrees","Control bar back up to full extension"],feel:"Lats pulling elbows down. Upper back squeezing at the bottom.",avoid:"Pulling behind the neck. Leaning too far back.",yt:"lat pulldown form tutorial"},
+  "Lat Pulldown (neutral)":{summary:"Lat pulldown with palms facing each other. Easier on shoulders, strong lat contraction.",setup:"Neutral grip attachment. Same seated position.",cues:["Pull handles to upper chest","Elbows drive down and in","Squeeze lats at the bottom","Full extension at the top"],feel:"Strong lat engagement.",avoid:"Partial reps at the top.",yt:"neutral grip lat pulldown form"},
+  "Single Arm Pulldown":{summary:"One arm at a time on cable pulldown — more range, fixes imbalances.",setup:"Single handle on high cable. Sit or kneel.",cues:["Pull handle to your hip / side of torso","Feel lat fully contract at the bottom","Reach all the way up for the full stretch","Keep torso still — don't rotate to help"],feel:"Lat working through a longer range.",avoid:"Rotating body to pull down.",yt:"single arm lat pulldown form"},
+  "Straight Arm Pulldown":{summary:"Arms stay straight the whole time — isolates lat without bicep involvement.",setup:"High cable, bar or rope. Stand back, arms extended, hinge slightly forward.",cues:["Keep arms completely straight throughout","Pull bar down in arc to hips","Squeeze lats hard at the bottom","Arms rise back overhead slowly"],feel:"Pure lat isolation.",avoid:"Bending elbows — defeats the purpose.",yt:"straight arm pulldown form"},
+  "Barbell Curl":{summary:"Classic standing barbell bicep curl. Simple and effective.",setup:"Barbell, shoulder-width underhand grip. Arms fully extended.",cues:["Curl to shoulders — elbows stay fixed at sides","Squeeze hard at the top","Lower slowly — 2–3 seconds down","Full extension at the bottom"],feel:"Biceps contracting throughout. Peak squeeze at the top.",avoid:"Swinging your back. Elbows drifting forward.",yt:"barbell curl form tutorial"},
+  "Dumbbell Curl":{summary:"Bicep curl with dumbbells. Each arm works independently.",setup:"Stand with dumbbells at sides, palms forward.",cues:["Curl to shoulder height — elbows pinned at sides","Rotate wrist slightly outward at top for full contraction","Lower under control","Full extension at bottom"],feel:"Bicep peak contraction at top. Full stretch at bottom.",avoid:"Swinging. Partial reps.",yt:"dumbbell curl form"},
+  "Incline Dumbbell Curl":{summary:"Curl lying back on an incline bench — bicep in stretched position from the start.",setup:"45–60 degree incline. Dumbbells hanging at sides, arms fully extended.",cues:["Curl from the fully stretched position","Elbows stay back — don't let them come forward","Squeeze at the top","Lower slowly to full stretch"],feel:"Deeper bicep stretch at bottom than standing curls.",avoid:"Elbows swinging forward.",yt:"incline dumbbell curl form"},
+  "Cable Curl":{summary:"Bicep curl with a low cable — constant tension throughout.",setup:"Low cable, bar or EZ bar. Stand close, arms extended.",cues:["Curl to shoulder height","Hold the top a moment","Lower slowly — resistance all the way down","Full extension at bottom"],feel:"Constant bicep tension unlike free weights.",avoid:"Standing too far back.",yt:"cable curl form"},
+  "Hammer Curl":{summary:"Curl with neutral grip (palms facing each other). Adds thickness to the arm.",setup:"Stand with dumbbells at sides, thumbs forward. Keep that grip throughout.",cues:["Curl straight up — no wrist rotation","Elbows at your sides","Squeeze at the top","Slow descent"],feel:"More forearm and outer bicep than regular curls.",avoid:"Rotating wrist — turns it into a regular curl.",yt:"hammer curl form tutorial"},
+  "Preacher Curl (machine)":{summary:"Bicep curl with arms on a preacher pad — eliminates all swinging. Pure isolation.",setup:"Upper arms on the angled pad. Underhand grip.",cues:["Curl to full contraction — squeeze hard","Lower slowly to full extension","Elbows stay on pad throughout","Full range every rep"],feel:"Very isolated bicep work.",avoid:"Partial reps — the bottom stretch is most valuable.",yt:"preacher curl machine form"},
+  "Close Grip Bench Press":{summary:"Narrow-grip bench press — shifts emphasis from chest to triceps.",setup:"Flat bench, hands shoulder-width or slightly narrower.",cues:["Lower to lower chest — elbows track close to body","Press straight up","Elbows at about 45 degrees","Wrists straight — don't let them bend back"],feel:"Triceps doing far more than regular bench.",avoid:"Grip too narrow — wrist stress. Elbows flaring.",yt:"close grip bench press form"},
+  "Tricep Pushdown (cable)":{summary:"High cable, push bar or rope down to extend arms. Classic tricep isolation.",setup:"High cable, rope or bar. Upper arms pinned at sides. Elbows at 90 degrees.",cues:["Push down until arms fully extended","Squeeze triceps hard at bottom","Upper arms stay fixed — only forearms move","Return to 90 degrees under control"],feel:"Triceps burning every rep. Especially at full extension.",avoid:"Elbows drifting forward. Partial reps.",yt:"tricep pushdown cable form"},
+  "Overhead Tricep Ext (cable)":{summary:"Tricep extension with arms overhead — fully stretched position, great for the long head.",setup:"Low cable, rope. Face away from machine. Elbows by ears, bent.",cues:["Extend arms overhead to full lockout","Elbows stay fixed pointing forward","Lower rope slowly behind head to stretch","Feel the stretch before each rep"],feel:"Deeper tricep stretch than pushdowns.",avoid:"Elbows flaring out. Momentum.",yt:"overhead tricep extension cable form"},
+  "Skull Crushers":{summary:"Lying barbell or dumbbell tricep extension. Lower toward your forehead, extend back up.",setup:"Flat bench. Bar above chest, arms extended. Hands shoulder-width.",cues:["Lower toward your forehead — elbows only bend, upper arms fixed","Stop just before bar reaches head","Extend back to lockout","Upper arms perpendicular to floor throughout"],feel:"Triceps doing everything. Big stretch at bottom.",avoid:"Upper arms drifting back. Going too heavy.",yt:"skull crushers form tutorial"},
+  "Dips (tricep)":{summary:"Parallel bars, body upright — tricep focused compound movement.",setup:"Parallel bars, arms extended. Body upright for tricep focus.",cues:["Lower until upper arms are roughly parallel to floor","Elbows tuck back — don't flare","Press back to full extension","Stay upright — lean forward = more chest"],feel:"Triceps and chest. Upright = more tricep.",avoid:"Going too deep if shoulder discomfort. Elbows flaring wide.",yt:"tricep dips form parallel bars"},
+  "Plank":{summary:"Hold a push-up position on your forearms. Builds core stability. Foundational.",setup:"Forearms on floor, elbows under shoulders. Head to heels in a straight line.",cues:["Squeeze glutes and brace abs — actively hold tension","Don't let hips sag or pike up","Breathe normally","Neutral neck — don't drop your head"],feel:"Core, glutes, and shoulders all working to maintain position.",avoid:"Hips sagging. Stop if you can't hold form.",yt:"plank proper form tutorial"},
+  "Cable Crunch":{summary:"Kneeling with high cable, crunch elbows to knees. Best weighted ab exercise.",setup:"High cable, rope. Kneel facing machine. Rope at sides of head. Start tall.",cues:["Crunch ribs to hips — not head to knees","Hold contracted position a second","Movement is a spinal curl — round your back","Control the return"],feel:"Deep ab contraction. Rectus abdominis throughout.",avoid:"Pulling with arms or neck. Hip flexors taking over.",yt:"cable crunch form tutorial"},
+  "Hanging Leg Raise":{summary:"Hang from a bar and raise your legs. Lower abs and hip flexors. Work gym only.",setup:"Hang from bar with a firm grip. Body straight, no swing.",cues:["Raise legs with control — knees bent = easier, straight = harder","Posteriorly tilt pelvis at top — curl hips up slightly","Lower slowly — don't drop","No swinging — reset if you swing"],feel:"Lower abs and hip flexors.",avoid:"Swinging. Stopping too low — legs to at least hip height.",yt:"hanging leg raise form"},
+  "Ab Wheel":{summary:"Roll a wheel out from kneeling, roll back. Brutal anti-extension core exercise.",setup:"Kneel, ab wheel in hands directly below shoulders.",cues:["Roll forward slowly, core braced hard","Go as far as you can without lower back arching","Use abs to pull wheel back — not arms","Start with small range and build over time"],feel:"Full core engagement.",avoid:"Lower back arching as you roll out. Going too far too soon.",yt:"ab wheel rollout form tutorial"},
+  "Pallof Press":{summary:"Anti-rotation exercise. Hold a cable at chest and press it out — core resists rotation.",setup:"Cable at chest height. Stand side-on to machine, hold handle with both hands.",cues:["Press handle straight out in front of chest","Hold 2–3 seconds — resist the cable pulling you","Pull back to chest","Body should not rotate at any point"],feel:"Core working hard to stay still. Obliques especially.",avoid:"Rotating toward machine. Standing too close — no tension = no challenge.",yt:"pallof press form tutorial"},
+  "Landmine Rotation":{summary:"Barbell anchored to floor, hold the end and rotate it side to side. Rotational core strength.",setup:"Face the barbell end. Hold with both hands, arms extended. Feet shoulder-width.",cues:["Rotate bar in arc from hip height on one side to the other","Arms relatively extended throughout","Hips and shoulders rotate together","Control the bar — don't let momentum take over"],feel:"Obliques and rotational core.",avoid:"Going too heavy — this is about control.",yt:"landmine rotation core exercise"},
+  "Standing Calf Raise":{summary:"Rise onto toes while standing. Targets the gastrocnemius — the outer calf muscle.",setup:"Balls of feet on the edge of a step for full range.",cues:["Rise as high as possible onto toes","Pause at top — squeeze calves","Lower heel below step for full stretch","Slow and controlled — don't bounce"],feel:"Full calf contraction at top. Deep stretch at bottom.",avoid:"Bouncing. Partial reps.",yt:"standing calf raise form"},
+  "Seated Calf Raise":{summary:"Calf raise seated — targets the soleus, the deeper calf muscle.",setup:"Machine pad across lower thighs. Balls of feet on platform.",cues:["Push up onto toes fully","Hold at top and squeeze","Lower to full stretch below platform","Slow reps — soleus responds to time under tension"],feel:"Deeper than standing calf raises — underneath the calf.",avoid:"Fast bouncy reps.",yt:"seated calf raise form"},
+  "Leg Press Calf Raise":{summary:"Calf raise on the leg press machine — balls of feet on the bottom edge.",setup:"Just balls of feet on bottom edge of platform. Legs nearly extended.",cues:["Press through balls of feet to full extension","Hold at top","Heels drop back for full stretch","Slow and controlled"],feel:"Similar to standing calf raises. Can load heavily.",avoid:"Full foot on platform — that's a leg press.",yt:"leg press calf raise form"},
+  "Push Up":{summary:"Chest, shoulders, and triceps using your bodyweight. The classic.",setup:"Hands slightly wider than shoulder-width. Body in a straight line. Core braced.",cues:["Lower until chest nearly touches the floor","Elbows at roughly 45 degrees — not flared, not tucked tight","Press back to full extension","Keep body rigid — don't let hips sag"],feel:"Chest and triceps. Shoulders stabilising.",avoid:"Partial reps. Hips sagging. Head dropping.",yt:"push up proper form tutorial"},
+  "Wide Push Up":{summary:"Push up with wider hand placement — more chest, less tricep.",setup:"Hands wider than shoulder-width. Otherwise same as standard.",cues:["Lower with control — wider grip means more chest stretch","Don't let elbows flare beyond 90 degrees","Full range of motion","Body stays rigid"],feel:"More chest than standard push up.",avoid:"Hands too wide — shoulder stress.",yt:"wide grip push up form"},
+  "Diamond Push Up":{summary:"Hands together forming a diamond shape under chest. Heavily tricep-focused.",setup:"Index fingers and thumbs touching under chest.",cues:["Lower to the diamond — chest touches hands","Elbows track close to sides","Press back to full extension","Go to knees if needed"],feel:"Triceps doing most of the work.",avoid:"Hands too far forward — wrist stress.",yt:"diamond push up form"},
+  "Pike Push Up":{summary:"Hips raised high in an inverted V, press your head toward the floor. Shoulder-focused.",setup:"Push up position, walk feet toward hands until hips are high.",cues:["Lower head toward floor between hands","Elbows track out to sides","Press back up to V position","More vertical torso = more shoulder focus"],feel:"Shoulders and triceps.",avoid:"Hips dropping out of V shape.",yt:"pike push up form tutorial"},
+  "Burpee":{summary:"Stand, drop to floor, push up, jump back up. Full body conditioning.",setup:"Stand tall. No equipment.",cues:["Drop hands to floor, jump feet back to plank","Do a push up (or skip to start)","Jump feet back to hands","Stand and jump with arms overhead"],feel:"Full body. Cardio builds fast.",avoid:"Rushing and losing form on the push up.",yt:"burpee proper form"},
+  "Mountain Climber":{summary:"In a push up position, drive knees toward chest alternately. Core and cardio.",setup:"Push-up position, arms extended. Core braced, back flat.",cues:["Drive one knee toward chest while keeping hips level","Switch legs in a running motion","Keep hips from rising or dropping","Faster = more cardio. Slower = more core."],feel:"Core stabilising while hip flexors work.",avoid:"Hips piking up. Lower back arching.",yt:"mountain climber exercise form"},
+  "Bear Crawl":{summary:"On hands and feet (not knees), move forward with knees hovering just off the ground.",setup:"Hands and feet on floor, knees bent at 90 degrees, hovering 1–2 inches off floor.",cues:["Move opposite hand and foot at the same time","Back flat — don't let hips rise","Stay low and slow","Breathe steadily"],feel:"Shoulders, core, and hips working together. Coordination challenge.",avoid:"Hips rising. Knees touching floor.",yt:"bear crawl exercise form"},
+  "Superman Hold":{summary:"Lie face down, raise arms and legs simultaneously. Strengthens lower back and glutes.",setup:"Face down on floor. Arms overhead, legs straight.",cues:["Lift arms and legs simultaneously","Squeeze glutes and lower back at top","Hold for prescribed time","Lower with control"],feel:"Lower back and glutes.",avoid:"Jerking. Holding breath.",yt:"superman hold exercise form"},
+  "Reverse Lunge (bodyweight)":{summary:"Step backwards into a lunge — easier on knees than forward lunges.",setup:"Stand tall. Step one foot back and lower back knee toward floor.",cues:["Back knee drops straight down — don't let it drift out","Front knee stays over front foot","Push through front heel to return","Torso upright throughout"],feel:"Front quad and glute doing the work.",avoid:"Front knee caving inward. Leaning forward.",yt:"reverse lunge form tutorial"},
+  "Wall Sit":{summary:"Back against wall, thighs parallel to floor — hold it. Isometric quad endurance.",setup:"Back flat on wall, feet hip-width out front. Lower until thighs parallel.",cues:["Thighs parallel to floor — don't cheat by going higher","Knees at 90 degrees, tracking over toes","Hands on thighs or out front","Breathe and hold"],feel:"Quad burn builds steadily.",avoid:"Thighs above parallel — too easy.",yt:"wall sit exercise"},
+  "Band Pull Apart":{summary:"Pull a resistance band apart horizontally. Targets rear delts and upper back — great for posture.",setup:"Band in front at chest height, hands shoulder-width, arms extended.",cues:["Pull band apart — hands drive out to sides","Squeeze shoulder blades at the end","Return slowly — don't let band snap back","Arms stay extended throughout"],feel:"Rear delts and rhomboids.",avoid:"Bending elbows. Going too fast.",yt:"band pull apart form"},
+  "Banded Glute Bridge":{summary:"Glute bridge with a resistance band around your knees. Forces knees apart — more glute activation.",setup:"Lie on back, band around knees just above joint. Feet flat, hip-width.",cues:["Drive knees out against band as you bridge up","Squeeze glutes hard at top","Knees pushed out throughout — resist the band pulling them in","Lower slowly"],feel:"Glutes and outer hip working harder than standard bridge.",avoid:"Knees caving in — that defeats the whole point.",yt:"banded glute bridge form"},
+  "Banded Clamshell":{summary:"On your side, knees bent, band around knees — open and close like a clamshell. Key for knee health and glute medius strength.",setup:"Lie on side, hips stacked, knees bent at 90 degrees. Band around knees.",cues:["Rotate top knee upward — like a clamshell opening","Keep heels together throughout","Go as high as you can without hip rolling back","Lower slowly — resist the band"],feel:"Outer glute / hip. Burn builds fast despite feeling small.",avoid:"Hip rolling backward for more range — keep hips stacked.",yt:"banded clamshell form tutorial"},
+  "Banded Lateral Walk":{summary:"Band around ankles or knees, walk sideways. Targets the glute medius — great for knee stability.",setup:"Band around ankles or above knees. Slight squat position.",cues:["Step sideways — feet never fully come together","Stay in slight squat throughout — don't stand upright","Control each step","Equal steps each direction"],feel:"Outer hip burning after a few steps.",avoid:"Standing upright — lose glute activation. Steps too big.",yt:"banded lateral walk form"},
+  "Band Curl":{summary:"Bicep curl using a resistance band — increasing tension as you curl up.",setup:"Stand on band, feet hip-width. Hold ends underhand.",cues:["Curl to shoulder height — elbows at sides","Squeeze at top","Lower slowly — band resists all the way down","Full extension at bottom"],feel:"Biceps with increasing tension toward the top.",avoid:"Elbows swinging forward.",yt:"resistance band curl form"},
+  "Band Tricep Pushdown":{summary:"Band version of cable pushdown. Anchor overhead, push down to extend arms.",setup:"Anchor band high. Hold ends overhand. Upper arms at sides.",cues:["Push hands down until arms fully extended","Squeeze triceps at bottom","Upper arms pinned — only forearms move","Return slowly"],feel:"Tricep isolation. Good home alternative.",avoid:"Elbows drifting away from body.",yt:"resistance band tricep pushdown"},
+  "Band Row":{summary:"Seated or standing row with a resistance band. Targets mid-back.",setup:"Anchor band at mid-height or sit with band around feet.",cues:["Pull band to stomach — drive elbows back","Squeeze shoulder blades at end","Return slowly, arms fully extended","Sit tall — no rounding"],feel:"Mid-back and lats.",avoid:"Rounding back. Momentum.",yt:"resistance band row form"},
+  "Band Pull Through":{summary:"Hip hinge using a band. Same pattern as cable pull through.",setup:"Anchor band low behind you. Stand facing away, band between legs.",cues:["Push hips back into the hinge","Drive hips forward to stand — squeeze glutes","Arms just hold the band — legs do the work","Back flat throughout"],feel:"Glutes and hamstrings.",avoid:"Using arms to pull. Squatting instead of hinging.",yt:"band pull through exercise"},
+  "Band Overhead Press":{summary:"Overhead press standing on a resistance band.",setup:"Stand on band, feet hip-width. Hold band at shoulder height.",cues:["Press both hands overhead to full extension","Core braced — don't arch lower back","Lower back to shoulder height under control","Tension increases as you press higher"],feel:"Shoulders and triceps.",avoid:"Arching lower back as you press.",yt:"resistance band overhead press form"},
+  "Band Face Pull":{summary:"Face pull using a resistance band. Same movement as cable version — great for shoulder health.",setup:"Anchor band at face height. Hold both ends, step back for tension.",cues:["Pull band to face — hands by ears","Rotate hands outward as you pull","Elbows stay high","Hold end position"],feel:"Rear delts and external rotators.",avoid:"Elbows dropping. Pulling to neck.",yt:"resistance band face pull form"},
+  "Water Walking":{summary:"Walk through water in your home pool. Low-impact cardio and resistance combined.",setup:"Home pool, water at waist to chest height.",cues:["Exaggerate your arm swing — water resistance is the workout","High knees as you step","Stay upright — don't lean forward","Direction changes add challenge"],feel:"Gentle cardio with more resistance than it seems.",avoid:"Slouching. Going so slow there's no resistance.",yt:"water walking aqua exercise"},
+  "Water Jogging":{summary:"Jogging motion in water. Higher intensity than walking. Great cardio with zero joint impact.",setup:"Home pool. Water at chest height ideally.",cues:["Drive knees up high with each step","Pump arms like running on land","Stay tall — don't hunch","Vary speed for intervals"],feel:"Cardiovascular challenge with no impact.",avoid:"Shuffling — lift those knees.",yt:"water jogging aqua jogging technique"},
+  "Aqua Squat":{summary:"Squat in water — reduces joint load while providing resistance. Knee-friendly leg work.",setup:"Home pool, water at waist to chest height. Feet shoulder-width.",cues:["Squat until thighs roughly parallel","Press through heels to stand","Knees track over toes","Water supports you — use the depth you're comfortable with"],feel:"Quads and glutes with gentle water support.",avoid:"Going deeper than comfortable for your knees.",yt:"aqua squat water exercise"},
+  "Pool Wall Push Up":{summary:"Push up against the pool wall. Chest and triceps with water resistance.",setup:"Face pool wall. Hands on edge shoulder-width. Body angled away.",cues:["Lower chest toward wall","Push back to extended arms","Keep body straight — don't let hips drop","Water adds resistance as you push away"],feel:"Chest and triceps. Easier than floor but still effective.",avoid:"Feet too close to wall — removes the challenge.",yt:"pool wall push up water exercise"},
+  "Flutter Kicks (pool)":{summary:"Hold pool wall and kick legs alternately at the surface. Lower abs and hip flexors with zero impact.",setup:"Face pool wall, hold edge. Legs extended behind at surface.",cues:["Kick legs alternately in small fast flutter","Legs stay relatively straight","Core braced","Hips at surface — don't let legs drop"],feel:"Hip flexors and lower abs.",avoid:"Bending knees too much — small controlled kicks.",yt:"flutter kicks swimming drill"},
+  "Pool Stretching / Mobility":{summary:"Use water buoyancy to assist stretching. Water supports your bodyweight for deeper, more relaxed stretches.",setup:"Home pool. Work through any stretches that feel restricted on land.",cues:["Hip circles — hands on pool wall, circle each leg","Leg swings — hold wall, swing forward and back","Shoulder rolls and arm circles in water","Gentle torso rotations"],feel:"Relaxed and supported. Best time to work on mobility.",avoid:"Nothing specific — listen to your body.",yt:"aqua stretching water mobility exercises"},
+  "Treading Water (intervals)":{summary:"Stay afloat continuously. Arms and legs working non-stop. Excellent cardiovascular conditioning.",setup:"Neighbour's pool, deep water — can't touch the bottom.",cues:["Eggbeater kick — alternate circular leg movements","Arms scull at surface to help stay up","For intervals: hard 30s, easy 30s","Stay relaxed — tension wastes energy"],feel:"Full body effort. Heart rate climbs fast.",avoid:"Panicking — stay relaxed and rhythmic.",yt:"treading water technique intervals"},
+  "Pool Plank (wall hold)":{summary:"Hold a plank position using the pool wall. Water instability makes it harder than it sounds.",setup:"Home pool. Hands on wall or edge, body extended behind in water.",cues:["Body straight from head to heels","Core braced — water will try to move you","Breathe steadily","Legs together or hip-width"],feel:"Core and shoulders fighting the water's movement.",avoid:"Hips dropping or piking.",yt:"pool plank water exercise"},
+  "Lap Swimming (freestyle)":{summary:"Front crawl — the most efficient stroke. Full body cardio with zero joint impact.",setup:"Neighbour's full-size pool. Goggles recommended.",cues:["High elbow catch — don't drop elbow as hand enters water","Rotate body side to side as you stroke — don't swim flat","Kick from your hips, not just knees","Breathe every 2–3 strokes, turning to the side"],feel:"Full body cardiovascular. Shoulders, lats, and legs.",avoid:"Swimming flat with no body rotation — inefficient and hard on shoulders.",yt:"freestyle swimming technique tutorial"},
+  "Lap Swimming (backstroke)":{summary:"Swimming on your back. Uses muscles differently to freestyle. Easier to breathe.",setup:"Neighbour's pool. Start with back to water.",cues:["Keep hips near surface — don't let them sink","Alternate arm pulls","Kick steadily from hips","Head still, eyes looking up"],feel:"Shoulders, lats, and legs.",avoid:"Hips dropping — slows you dramatically.",yt:"backstroke swimming technique"},
+  "Lap Swimming (breaststroke)":{summary:"Slowest but most technical stroke. Frog kick and heart-shaped arm pull. Great recovery stroke.",setup:"Neighbour's pool.",cues:["Arms pull in a heart shape","Frog kick — feet flex, drive out and together","Glide between each stroke cycle — don't rush","Breathe during the arm pull, face down during the glide"],feel:"Inner thigh and glutes from kick. Chest and lats from pull.",avoid:"No glide phase — breaststroke needs that pause.",yt:"breaststroke technique tutorial"},
+};
+
+function getData(){try{return JSON.parse(localStorage.getItem('liftlog_v2')||'[]')}catch(e){return[]}}
+function saveData(d){localStorage.setItem('liftlog_v2',JSON.stringify(d))}
+function getDayKey(){return['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()]}
+function fmtDate(iso){return new Date(iso).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
+
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+n).classList.add('active');
+  document.getElementById('nav-'+n).classList.add('active');
+  if(n==='progress')renderProgress();
+  if(n==='history')renderHistory();
+}
+
+function renderToday(){
+  const dk=getDayKey(),session=SESSIONS[dk];
+  const now=new Date();
+  document.getElementById('today-date').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const data=getData(),todayStr=now.toISOString().slice(0,10);
+  const logged=data.find(s=>s.date===todayStr);
+  let html='';
+  if(logged){
+    html=`<div class="card" style="text-align:center;padding:24px 16px"><div style="font-size:32px;margin-bottom:10px">✓</div><div style="font-size:16px;font-weight:600;margin-bottom:4px">Session logged</div><div style="font-size:13px;color:var(--text2)">${logged.name}</div></div><button class="btn sec" style="margin-top:0" onclick="startSession('${dk}')">Log another session</button>`;
+  } else if(session){
+    html=`<div class="session-card"><div class="sc-head"><div class="sc-title">${session.name}</div><div class="sc-meta">${session.type} · ${session.block} · Week 1</div></div><div class="ex-preview">`;
+    session.exercises.forEach(ex=>{html+=`<div class="ep-row"><div class="ep-dot"></div><div class="ep-name">${ex.name}</div><div class="ep-target">${ex.target}</div></div>`;});
+    html+=`</div></div><button class="btn" onclick="startSession('${dk}')">Start session</button>`;
+  } else {
+    html=`<div class="empty"><div class="empty-t">Rest day</div><div class="empty-s">No session today. Recovery is part of the programme.</div></div>`;
+    html+=`<div style="padding:0 16px;margin-top:8px"><select id="mp" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);color:var(--text);font-size:14px;padding:12px;border-radius:var(--r)">`;
+    Object.keys(SESSIONS).forEach(k=>{html+=`<option value="${k}">${SESSIONS[k].name}</option>`;});
+    html+=`</select></div><button class="btn sec" style="margin-top:10px" onclick="startSession(document.getElementById('mp').value)">Log a session anyway</button>`;
+  }
+  document.getElementById('today-content').innerHTML=html;
+}
+
+let S={};
+function startSession(dk){
+  const session=SESSIONS[dk];
+  if(!session)return;
+  S={dayKey:dk,session,exSets:{},exDone:{},notes:''};
+  session.exercises.forEach((_,i)=>{S.exSets[i]=[{reps:'',weight:'',rpe:''}];S.exDone[i]=false;});
+  document.getElementById('ov-session-title').textContent=session.name;
+  document.getElementById('ov-session').classList.add('active');
+  renderSessionList();
+}
+function closeSession(){if(confirm('Cancel this session? Progress will be lost.')){document.getElementById('ov-session').classList.remove('active');}}
+function doneCount(){return Object.values(S.exDone).filter(Boolean).length}
+function renderSessionList(){
+  const total=S.session.exercises.length,done=doneCount();
+  document.getElementById('sess-prog-bar').style.width=Math.round((done/total)*100)+'%';
+  document.getElementById('sess-prog-lbl').textContent=`${done} of ${total} exercises done`;
+  let html='';
+  S.session.exercises.forEach((ex,i)=>{
+    const isDone=S.exDone[i];
+    const sc=S.exSets[i]?S.exSets[i].filter(s=>s.reps||s.weight).length:0;
+    html+=`<div class="eli ${isDone?'done':''}" onclick="openExercise(${i})"><div class="eli-check ${isDone?'done':''}">${isDone?'✓':''}</div><div class="eli-info"><div class="eli-name">${ex.name}</div><div class="eli-target">${ex.target} · ${ex.tip}</div>${isDone&&sc?`<div class="eli-sets">${sc} set${sc!==1?'s':''} logged</div>`:''}</div><div class="eli-arrow">›</div></div>`;
+  });
+  document.getElementById('ov-session-body').innerHTML=html;
+  document.getElementById('ov-session-footer').innerHTML=done===total?`<button class="btn" onclick="goToNotes()">All done — add notes →</button>`:`<div style="font-size:12px;color:var(--text2);text-align:center;padding:4px 0">Tap any exercise to log it — any order.</div>`;
+}
+
+let currentExIdx=null;
+function openExercise(i){
+  currentExIdx=i;
+  const ex=S.session.exercises[i];
+  document.getElementById('ov-ex-title').textContent=ex.name;
+  document.getElementById('ov-exercise').classList.add('active');
+  renderExLogger();
+}
+function backToList(){document.getElementById('ov-exercise').classList.remove('active');currentExIdx=null;renderSessionList();}
+function renderExLogger(){
+  const i=currentExIdx,ex=S.session.exercises[i],sets=S.exSets[i];
+  let sHtml=`<div class="set-heads"><div></div><div class="sh">Reps</div><div class="sh">kg</div><div class="sh">RPE</div></div>`;
+  sets.forEach((s,si)=>{sHtml+=`<div class="set-row"><div class="set-num">${si+1}</div><input class="si" type="number" inputmode="decimal" placeholder="—" value="${s.reps}" oninput="updSet(${i},${si},'reps',this.value)"><input class="si" type="number" inputmode="decimal" placeholder="—" value="${s.weight}" oninput="updSet(${i},${si},'weight',this.value)"><input class="si" type="number" inputmode="decimal" placeholder="—" min="1" max="10" value="${s.rpe}" oninput="updSet(${i},${si},'rpe',this.value)"></div>`;});
+  document.getElementById('ov-ex-body').innerHTML=`<div class="ex-card-head"><div><div class="ex-card-name">${ex.name}</div><div class="ex-card-meta">Target: ${ex.target} · ${ex.tip}</div></div></div><div class="sets-wrap">${sHtml}<button class="add-set-btn" onclick="addSet(${i})">+ Add set</button></div><div style="font-size:11px;color:var(--text3);padding:0 2px">RPE 6 = easy · 7 = comfortable · 8 = challenging · 9 = hard · 10 = max</div>`;
+}
+function updSet(ei,si,f,v){if(!S.exSets[ei])S.exSets[ei]=[];if(!S.exSets[ei][si])S.exSets[ei][si]={reps:'',weight:'',rpe:''};S.exSets[ei][si][f]=v;}
+function addSet(ei){S.exSets[ei].push({reps:'',weight:'',rpe:''});renderExLogger();}
+function saveExercise(){
+  const i=currentExIdx;
+  if(!S.exSets[i].some(s=>s.reps||s.weight)){if(!confirm('No sets logged. Mark as done anyway?'))return;}
+  S.exDone[i]=true;
+  document.getElementById('ov-exercise').classList.remove('active');
+  currentExIdx=null;
+  renderSessionList();
+}
+
+// INFO SHEET
+function openInfo(){
+  const ex=S.session.exercises[currentExIdx];
+  const info=EX[ex.name];
+  if(!info){document.getElementById('sheet-content').innerHTML=`<div class="sheet-title">${ex.name}</div><p style="color:var(--text2);font-size:14px;margin-top:8px">No description available yet.</p>`;document.getElementById('sheet-bg').classList.add('active');return;}
+  const ytUrl=`https://www.youtube.com/results?search_query=${encodeURIComponent(info.yt)}`;
+  let html=`<div class="sheet-title">${ex.name}</div><div class="sheet-summary">${info.summary}</div>`;
+  if(info.setup){html+=`<div class="sheet-section">Setup</div><div class="sheet-feel">${info.setup}</div>`;}
+  html+=`<div class="sheet-section">Key cues</div>`;
+  info.cues.forEach(c=>{html+=`<div class="sheet-cue">${c}</div>`;});
+  html+=`<div class="sheet-section">What to feel</div><div class="sheet-feel">${info.feel}</div>`;
+  html+=`<div class="sheet-section">Avoid</div><div class="sheet-avoid">${info.avoid}</div>`;
+  html+=`<a class="sheet-yt" href="${ytUrl}" target="_blank">▶ Watch on YouTube</a>`;
+  document.getElementById('sheet-content').innerHTML=html;
+  document.getElementById('sheet-bg').classList.add('active');
+}
+function closeInfo(e){if(e.target===document.getElementById('sheet-bg'))document.getElementById('sheet-bg').classList.remove('active');}
+
+function goToNotes(){
+  document.getElementById('ov-session-body').innerHTML=`<div class="notes-wrap"><div class="notes-lbl">Session notes</div><textarea class="notes-ta" id="sess-notes" placeholder="How did it feel? Energy, sleep, anything notable...">${S.notes}</textarea></div><div style="font-size:12px;color:var(--text3);padding:0 2px">Optional — helps spot patterns over time.</div>`;
+  document.getElementById('ov-session-footer').innerHTML=`<button class="btn" onclick="saveSession()">Save session ✓</button>`;
+  document.getElementById('sess-prog-lbl').textContent='Almost done — add notes';
+}
+function saveSession(){
+  S.notes=document.getElementById('sess-notes')?.value||'';
+  const data=getData();
+  data.push({id:Date.now(),date:new Date().toISOString().slice(0,10),name:S.session.name,type:S.session.type,exercises:S.session.exercises.map((ex,i)=>({name:ex.name,sets:S.exSets[i].filter(s=>s.reps||s.weight)})),notes:S.notes});
+  saveData(data);
+  document.getElementById('ov-session').classList.remove('active');
+  renderToday();
+}
+
+const BIG6=['Barbell Bench Press','Conventional Deadlift','Barbell OHP','Hack Squat (machine)','Leg Press','Romanian Deadlift'];
+let activeChartLift='Barbell Bench Press',pChart=null;
+function renderProgress(){
+  const data=getData(),cutoff=new Date();cutoff.setDate(cutoff.getDate()-28);
+  const recent=data.filter(s=>new Date(s.date)>=cutoff);
+  const sg=document.getElementById('stat-grid'),cc=document.getElementById('chart-chips');
+  if(!data.length){sg.innerHTML=`<div style="grid-column:1/-1" class="empty"><div class="empty-t">No data yet</div><div class="empty-s">Log your first session to see progress.</div></div>`;cc.innerHTML='';return;}
+  let statsHtml='';
+  BIG6.forEach(lift=>{
+    let max=null,all=[];
+    recent.forEach(s=>s.exercises.forEach(ex=>{if(ex.name===lift)ex.sets.forEach(st=>{const w=parseFloat(st.weight);if(!isNaN(w)&&w>0)all.push(w);});}));
+    if(all.length)max=Math.max(...all);
+    const short=lift.replace('Barbell ','').replace('Conventional ','').replace('Romanian ','RDL').replace(' (machine)','');
+    statsHtml+=`<div class="stat-card"><div class="stat-lbl">${short}</div><div class="stat-val">${max!==null?max:'—'}<span class="stat-unit"> kg</span></div></div>`;
+  });
+  sg.innerHTML=statsHtml;
+  let chipsHtml='';
+  BIG6.forEach(lift=>{const short=lift.replace('Barbell ','').replace('Conventional ','').replace('Romanian ','RDL ').replace(' (machine)','');chipsHtml+=`<button class="chip ${lift===activeChartLift?'active':''}" onclick="selectLift('${lift}')">${short}</button>`;});
+  cc.innerHTML=chipsHtml;
+  renderChart(recent);
+}
+function selectLift(lift){activeChartLift=lift;document.querySelectorAll('.chip').forEach(c=>{const short=lift.replace('Barbell ','').replace('Conventional ','').replace('Romanian ','RDL ').replace(' (machine)','');c.classList.toggle('active',c.textContent.trim()===short.trim());});const cutoff=new Date();cutoff.setDate(cutoff.getDate()-28);renderChart(getData().filter(s=>new Date(s.date)>=cutoff));}
+function renderChart(recent){
+  const pts=[];
+  recent.forEach(s=>s.exercises.forEach(ex=>{if(ex.name===activeChartLift){let m=0;ex.sets.forEach(st=>{const w=parseFloat(st.weight);if(!isNaN(w)&&w>m)m=w;});if(m>0)pts.push({x:s.date,y:m});}}));
+  pts.sort((a,b)=>a.x.localeCompare(b.x));
+  const labels=pts.map(p=>{const d=new Date(p.x);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});});
+  if(pChart){pChart.destroy();pChart=null;}
+  const ctx=document.getElementById('progressChart').getContext('2d');
+  pChart=new Chart(ctx,{type:'line',data:{labels:labels.length?labels:['No data'],datasets:[{label:activeChartLift,data:pts.length?pts.map(p=>p.y):[0],borderColor:'#c8f542',backgroundColor:'rgba(200,245,66,0.07)',pointBackgroundColor:'#c8f542',pointRadius:5,fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#666',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#666',font:{size:11},callback:v=>v+'kg'},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+}
+
+function renderHistory(){
+  const data=getData(),cutoff=new Date();cutoff.setDate(cutoff.getDate()-28);
+  const recent=data.filter(s=>new Date(s.date)>=cutoff).slice().reverse();
+  const el=document.getElementById('history-list');
+  if(!recent.length){el.innerHTML=`<div class="empty"><div class="empty-t">No sessions yet</div><div class="empty-s">Your logged sessions will appear here.</div></div>`;return;}
+  el.innerHTML=recent.map((s,i)=>`<div class="hist-item"><div class="hist-head" onclick="toggleHist(${i})"><div><div class="hist-date">${fmtDate(s.date)}</div><div class="hist-name">${s.name}</div></div><div class="hist-chev" id="hc-${i}">⌄</div></div><div class="hist-body" id="hb-${i}">${s.exercises.filter(ex=>ex.sets&&ex.sets.length).map(ex=>`<div class="hist-ex"><span class="hist-ex-n">${ex.name}</span><span>${ex.sets.map(st=>`${st.reps||'?'}r × ${st.weight||'?'}kg`).join(', ')}</span></div>`).join('')}${s.notes?`<div class="hist-notes">"${s.notes}"</div>`:''}</div></div>`).join('');
+}
+function toggleHist(i){document.getElementById('hb-'+i).classList.toggle('open');document.getElementById('hc-'+i).classList.toggle('open');}
+
+renderToday();
+</script>
+</body>
+</html>
