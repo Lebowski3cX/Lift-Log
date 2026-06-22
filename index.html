@@ -451,7 +451,6 @@ function saveSession(){
   renderToday();
 }
 
-const BIG6=['Barbell Bench Press','Conventional Deadlift','Barbell OHP','Hack Squat (machine)','Leg Press','Romanian Deadlift'];
 let activeChartLift='Barbell Bench Press',pChart=null;
 function renderProgress(){
   const data=getData(),cutoff=new Date();cutoff.setDate(cutoff.getDate()-28);
